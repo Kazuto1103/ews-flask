@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Sistem Peringatan Dini Banjir Hulu Sumatera Utara berbasis prediksi curah hujan Conv1D-LSTM.">
+    <title>EWS Banjir Hulu SUMUT</title>
+
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- ══════════════════════════════════════════════════════════
+         MOBILE TOP BAR (hidden on desktop)
+    ══════════════════════════════════════════════════════════ -->
+    <div class="mobile-topbar d-md-none">
+        <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Buka Menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="brand">
+            <i class="bi bi-shield-exclamation text-danger fs-5 animate-pulse"></i>
+            <div>
+                <span>EWS Banjir</span>
+                <small>Hulu SUMUT</small>
+            </div>
+        </div>
+        <div style="width: 36px;"><!-- spacer --></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SIDEBAR BACKDROP OVERLAY (mobile only)
+    ══════════════════════════════════════════════════════════ -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+
+            <!-- ══════════════════════════════════════════════════
+                 SIDEBAR
+            ══════════════════════════════════════════════════ -->
+            <nav id="sidebarMenu" class="sidebar" aria-label="Navigasi Utama">
+                <div class="sidebar-wrapper px-2 pt-3">
+                    <div>
+                        <!-- Brand Header (desktop) -->
+                        <div class="sidebar-header px-2 mb-4 d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-exclamation text-danger fs-3 animate-pulse"></i>
+                            <div>
+                                <h6 class="fw-bold mb-0 text-white">EWS BANJIR</h6>
+                                <small class="uppercase tracking-wider" style="color: #cbd5e1; font-weight: 600; font-size: 0.7rem;">Hulu SUMUT</small>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Links -->
+                        <ul class="nav flex-column gap-1">
+                            <li class="nav-item">
+                                <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}"
+                                   href="{{ url_for('main.dashboard') }}">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span>Dashboard EWS</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if active_page == 'data' %}active{% endif %}"
+                                   href="{{ url_for('main.data_exploration') }}">
+                                    <i class="bi bi-database"></i>
+                                    <span>Pengumpulan Data</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if active_page == 'training' %}active{% endif %}"
+                                   href="{{ url_for('main.training_performance') }}">
+                                    <i class="bi bi-cpu"></i>
+                                    <span>Proses Training</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if active_page == 'evaluation' %}active{% endif %}"
+                                   href="{{ url_for('main.model_evaluation') }}">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                    <span>Hasil Evaluasi</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer px-2 py-3 border-top mt-4" style="border-color: rgba(255,255,255,.08) !important;">
+                        <small class="text-muted d-block text-center mb-2">&copy; 2026 EWS-LSTM</small>
+                        <div class="d-flex justify-content-center">
+                            {% if config.MOCK_MODE %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3 py-1">
+                                    <i class="bi bi-flask me-1"></i> Mock Mode Active
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">
+                                    <i class="bi bi-hdd-network me-1"></i> Real Data Mode Active
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                </div>
+            </nav>
+
+            <!-- ══════════════════════════════════════════════════
+                 MAIN CONTENT AREA
+            ══════════════════════════════════════════════════ -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-md-4 px-3 py-3 main-content">
+
+                <!-- Desktop Page Header -->
+                <div class="d-flex justify-content-between flex-wrap align-items-center pt-2 pb-2 mb-3 border-bottom header-title-section">
+                    <div class="d-flex align-items-center gap-3">
+                        <button id="sidebarToggle"
+                                class="btn btn-outline-secondary rounded-circle d-none d-md-inline-flex align-items-center justify-content-center"
+                                style="width: 42px; height: 42px; padding: 0;"
+                                aria-label="Toggle Sidebar">
+                            <i class="bi bi-list fs-4"></i>
+                        </button>
+                        <div>
+                            <h1 class="h4 fw-bold text-gradient mb-0">
+                                <i class="bi bi-shield-exclamation text-danger me-2 animate-pulse"></i>
+                                Sistem Peringatan Dini Banjir Luapan Sungai
+                            </h1>
+                            <p class="text-muted mb-0 small">Dashboard Prediksi Curah Hujan Hulu Sumatera Utara (Conv1D-LSTM)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page content -->
+                {% block content %}{% endblock %}
+
+                <!-- Researcher Footer -->
+                <div class="researcher-footer mt-4 p-3 rounded-4 shadow-sm text-center">
+                    <p class="mb-0 text-muted small">
+                        Peneliti: <strong>Kana Saputra S, S.Pd, M.Kom. &nbsp;|&nbsp; Insan Taufik, S.Kom., M.Kom. &nbsp;|&nbsp; Dr. Sri Wahyuni, S.Kom., M.Kom.</strong>
+                    </p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         MOBILE BOTTOM NAVIGATION
+    ══════════════════════════════════════════════════════════ -->
+    <nav class="mobile-bottom-nav d-md-none" aria-label="Navigasi Mobile">
+        <div class="nav-items">
+            <a href="{{ url_for('main.dashboard') }}"
+               class="nav-btn {% if active_page == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('main.data_exploration') }}"
+               class="nav-btn {% if active_page == 'data' %}active{% endif %}">
+                <i class="bi bi-database"></i>
+                <span>Data</span>
+            </a>
+            <a href="{{ url_for('main.training_performance') }}"
+               class="nav-btn {% if active_page == 'training' %}active{% endif %}">
+                <i class="bi bi-cpu"></i>
+                <span>Training</span>
+            </a>
+            <a href="{{ url_for('main.model_evaluation') }}"
+               class="nav-btn {% if active_page == 'evaluation' %}active{% endif %}">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Evaluasi</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+    (function () {
+        const sidebar      = document.getElementById('sidebarMenu');
+        const overlay      = document.getElementById('sidebarOverlay');
+        const mobileBtn    = document.getElementById('mobileMenuBtn');
+        const desktopBtn   = document.getElementById('sidebarToggle');
+        const mainContent  = document.querySelector('.main-content');
+
+        // ── Mobile: open / close drawer ──────────────────────────
+        function openMobileSidebar() {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeMobileSidebar() {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        if (mobileBtn) mobileBtn.addEventListener('click', openMobileSidebar);
+        if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
+
+        // Close on nav link tap (mobile)
+        if (sidebar) {
+            sidebar.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 768) closeMobileSidebar();
+                });
+            });
+        }
+
+        // ── Desktop: collapsible sidebar ─────────────────────────
+        if (desktopBtn) {
+            desktopBtn.addEventListener('click', function () {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            });
+        }
+
+        // ── Close drawer if window resized to desktop ─────────────
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 768) closeMobileSidebar();
+        });
+    })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

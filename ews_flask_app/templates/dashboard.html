@@ -1,0 +1,434 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- ══════════════════════════════════════
+         MAP SECTION
+    ══════════════════════════════════════ -->
+    <div class="col-lg-12">
+        <div class="card card-premium shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header bg-transparent border-0 d-flex flex-wrap justify-content-between align-items-center gap-3 px-4 pt-4 pb-0">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-map text-primary me-2"></i> Peta Geografis Kerawanan & Estimasi Kontingensi Banjir</h5>
+                    <p class="text-muted small mb-0">Visualisasi area hulu dengan status kerawanan curah hujan proyeksi</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <!-- Siren Warning Control Widget -->
+                    <div id="sirenControlWidget" class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded-3 border">
+                        <span id="sirenBadge" class="badge bg-danger text-white py-2 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5 animate-pulse">
+                            <i class="bi bi-bell-fill"></i> <span id="sirenBadgeText">SIREN SIAP</span>
+                        </span>
+                        <button id="sirenToggleBtn" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5">
+                            <i id="sirenIcon" class="bi bi-volume-up-fill"></i> <span id="sirenBtnText">Mute Siren</span>
+                        </button>
+                    </div>
+
+                    <!-- Slider Widget -->
+                    <div class="slider-widget bg-light px-3 py-2 rounded-3 border d-flex align-items-center gap-3">
+                        <label for="timeSlider" class="form-label mb-0 fw-medium text-dark small text-nowrap">Projeksi Jam:</label>
+                        <input type="range" class="form-range" min="1" max="12" step="1" id="timeSlider" value="3" style="width: 130px;">
+                        <span id="sliderValue" class="badge bg-primary text-white py-2 px-3 rounded-pill fw-bold">Jam ke-3</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body px-4 pb-4 pt-3">
+
+                <div id="map" class="rounded-4 border" style="height: 420px; width: 100%; position: relative; z-index: 1;"></div>
+                <div class="mt-3 p-3 bg-light rounded-3 border d-flex flex-wrap justify-content-center gap-3 gap-md-4 small text-secondary">
+                    <strong class="text-dark"><i class="bi bi-palette text-primary me-2"></i> Legenda Curah Hujan:</strong>
+                    <div class="d-flex align-items-center gap-1.5"><span class="legend-dot" style="background-color: #2ecc71;"></span> Cerah (&le;0.5 mm)</div>
+                    <div class="d-flex align-items-center gap-1.5"><span class="legend-dot" style="background-color: #3498db;"></span> Ringan (0.5-20 mm)</div>
+                    <div class="d-flex align-items-center gap-1.5"><span class="legend-dot" style="background-color: #f1c40f;"></span> Sedang (20-50 mm)</div>
+                    <div class="d-flex align-items-center gap-1.5"><span class="legend-dot" style="background-color: #e67e22;"></span> Lebat (50-100 mm)</div>
+                    <div class="d-flex align-items-center gap-1.5"><span class="legend-dot" style="background-color: #e74c3c;"></span> Bahaya (&gt;100 mm)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TELEGRAM CONTROL PANEL
+    ══════════════════════════════════════ -->
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3" style="background-color: rgba(99,102,241,0.15);">
+                            <i class="bi bi-telegram text-primary fs-2"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Panel Kontrol Telegram EWS</h5>
+                            <p class="text-muted small mb-0">Kirim notifikasi langsung ke Telegram — tanpa bergantung pada browser</p>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button id="broadcastBtn" class="btn rounded-pill px-4 fw-semibold text-white"
+                                style="background: #6366f1; border: none;">
+                            <i class="bi bi-broadcast me-2"></i> Broadcast Semua Lokasi
+                        </button>
+                        <button id="testConnectionBtn" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold text-white border-secondary">
+                            <i class="bi bi-wifi me-2"></i> Test Koneksi Bot
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status feed -->
+                <div id="telegramStatusFeed" class="mt-4 rounded-3 p-3 d-none"
+                     style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="feedIcon" class="fs-5"></span>
+                        <div>
+                            <div id="feedTitle" class="text-white fw-semibold small"></div>
+                            <div id="feedMessage" class="text-muted" style="font-size: 0.8rem; max-width: 680px;"></div>
+                        </div>
+                        <span id="feedTimestamp" class="ms-auto text-muted" style="font-size: 0.75rem; white-space: nowrap;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         FLOOD DECISION CARDS
+    ══════════════════════════════════════ -->
+    <div class="col-lg-12">
+        <h4 class="fw-bold mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-bell-fill text-warning fs-4 animate-bounce"></i>
+            <span>Hasil Estimasi Keputusan Evakuasi Banjir Masa Depan & Validasi BMKG</span>
+        </h4>
+        <p class="text-muted mb-4">Sistem melakukan perhitungan akumulasi curah hujan masa depan dari model sekuensial yang dibandingkan dengan laporan stasiun cuaca resmi BMKG.</p>
+
+        <div class="row g-4">
+            {% for name, data in locations.items() %}
+                {% set status = flood_status[name] %}
+                <div class="col-xl-6">
+                    <div class="card location-card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+                        <div class="card-body p-4">
+                            <!-- Card Header -->
+                            <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-3">
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-1">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> Hulu: {{ name.replace('_', ' ') }}
+                                    </h5>
+                                    <span class="text-secondary small">
+                                        <i class="bi bi-broadcast me-1"></i> BMKG Forecast:
+                                        <strong class="text-primary">{{ bmkg_data[name] }}</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Accumulation Boxes -->
+                            <div class="row g-3 mb-3">
+                                <!-- 3h -->
+                                <div class="col-sm-6">
+                                    <div class="decision-box p-3 rounded-3" data-border-color="{{ status.color_3h }}" style="border-left: 5px solid transparent; background-color: #fcfcfc;">
+                                        <small class="text-muted d-block uppercase fw-bold tracking-wider mb-1">Estimasi 3 Jam Ke Depan</small>
+                                        <div class="mb-2">
+                                            <span class="text-muted small">Total Hujan:</span>
+                                            <code class="fw-bold text-dark fs-6">{{ status.accum_3h }} mm</code>
+                                        </div>
+                                        <span class="fw-bold small d-block" data-text-color="{{ status.color_3h }}">{{ status.status_3h }}</span>
+                                    </div>
+                                </div>
+                                <!-- 6h -->
+                                <div class="col-sm-6">
+                                    <div class="decision-box p-3 rounded-3" data-border-color="{{ status.color_6h }}" style="border-left: 5px solid transparent; background-color: #fcfcfc;">
+                                        <small class="text-muted d-block uppercase fw-bold tracking-wider mb-1">Estimasi 6 Jam Ke Depan</small>
+                                        <div class="mb-2">
+                                            <span class="text-muted small">Total Hujan:</span>
+                                            <code class="fw-bold text-dark fs-6">{{ status.accum_6h }} mm</code>
+                                        </div>
+                                        <span class="fw-bold small d-block" data-text-color="{{ status.color_6h }}">{{ status.status_6h }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Telegram Alert Buttons (3h and 6h) -->
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-outline-primary btn-sm rounded-pill px-3 alert-btn flex-grow-1"
+                                        data-location="{{ name }}"
+                                        data-accum="{{ status.accum_3h }}"
+                                        data-status="{{ status.status_3h }}"
+                                        data-hours="3">
+                                    <i class="bi bi-send me-1"></i> Alert 3 Jam
+                                </button>
+                                <button class="btn btn-primary btn-sm rounded-pill px-3 alert-btn flex-grow-1"
+                                        data-location="{{ name }}"
+                                        data-accum="{{ status.accum_6h }}"
+                                        data-status="{{ status.status_6h }}"
+                                        data-hours="6">
+                                    <i class="bi bi-send-fill me-1"></i> Alert 6 Jam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FEEDBACK MODAL
+══════════════════════════════════════ -->
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-body p-5 text-center">
+                <div id="modalIconContainer" class="mb-3 fs-1"></div>
+                <h5 class="fw-bold text-dark mb-2" id="modalTitle">Proses Pengiriman</h5>
+                <p class="text-secondary mb-4" id="modalMessage" style="font-size: 0.9rem; white-space: pre-line;"></p>
+                <button type="button" class="btn btn-primary rounded-pill px-5" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ─── Apply dynamic warning colors ─────────────────────────────
+    document.querySelectorAll('[data-border-color]').forEach(el => {
+        el.style.borderLeftColor = el.getAttribute('data-border-color');
+    });
+    document.querySelectorAll('[data-text-color]').forEach(el => {
+        el.style.color = el.getAttribute('data-text-color');
+    });
+
+    // ─── Modal helpers ─────────────────────────────────────────────
+    const feedbackModal    = new bootstrap.Modal(document.getElementById('feedbackModal'));
+    const modalTitle       = document.getElementById('modalTitle');
+    const modalMessage     = document.getElementById('modalMessage');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+
+    function showLoading(title, message) {
+        modalIconContainer.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+        modalTitle.innerText   = title;
+        modalMessage.innerText = message;
+        feedbackModal.show();
+    }
+
+    function showResult(success, title, message) {
+        if (success) {
+            modalIconContainer.innerHTML = '<i class="bi bi-check-circle-fill text-success animate-bounce"></i>';
+        } else {
+            modalIconContainer.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+        }
+        modalTitle.innerText   = title;
+        modalMessage.innerText = message;
+    }
+
+    // ─── Telegram Status Feed helper ───────────────────────────────
+    const statusFeed  = document.getElementById('telegramStatusFeed');
+    const feedIcon    = document.getElementById('feedIcon');
+    const feedTitle   = document.getElementById('feedTitle');
+    const feedMessage = document.getElementById('feedMessage');
+    const feedTs      = document.getElementById('feedTimestamp');
+
+    function updateFeed(success, title, message) {
+        statusFeed.classList.remove('d-none');
+        feedIcon.innerText    = success ? '✅' : '❌';
+        feedTitle.innerText   = title;
+        feedMessage.innerText = message;
+        feedTs.innerText      = new Date().toLocaleTimeString('id-ID');
+    }
+
+    // ─── Generic API caller ────────────────────────────────────────
+    function callApi(endpoint, body, loadingTitle, loadingMsg, successTitle, errorTitle) {
+        showLoading(loadingTitle, loadingMsg);
+        fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+        .then(r => r.json())
+        .then(data => {
+            const title = data.success ? successTitle : errorTitle;
+            showResult(data.success, title, data.message);
+            updateFeed(data.success, title, data.message);
+        })
+        .catch(() => {
+            showResult(false, 'Koneksi Error', 'Gagal menghubungi server Flask. Pastikan server berjalan.');
+            updateFeed(false, 'Koneksi Error', 'Gagal menghubungi server Flask.');
+        });
+    }
+
+    // ─── Single-location alert buttons ────────────────────────────
+    document.querySelectorAll('.alert-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const loc   = this.dataset.location;
+            const accum = parseFloat(this.dataset.accum);
+            const status = this.dataset.status;
+            const hours  = parseInt(this.dataset.hours);
+            const locDisplay = loc.replace(/_/g, ' ');
+
+            callApi(
+                '/api/trigger-alert',
+                { location: loc, accumulation: accum, status: status, hours: hours },
+                `Mengirim Alert ${hours} Jam...`,
+                `Menghubungi Telegram untuk ${locDisplay} (akumulasi ${hours} jam: ${accum.toFixed(2)} mm).`,
+                'Notifikasi Terkirim!',
+                'Gagal Mengirim Alert'
+            );
+        });
+    });
+
+    // ─── Broadcast all button ──────────────────────────────────────
+    document.getElementById('broadcastBtn').addEventListener('click', function () {
+        callApi(
+            '/api/broadcast-all',
+            {},
+            'Mengirim Laporan Lengkap...',
+            'Mengirim status curah hujan seluruh 4 lokasi hulu ke Telegram...',
+            'Broadcast Berhasil Dikirim!',
+            'Gagal Mengirim Broadcast'
+        );
+    });
+
+    // ─── Test connection button ────────────────────────────────────
+    document.getElementById('testConnectionBtn').addEventListener('click', function () {
+        callApi(
+            '/api/test-telegram',
+            {},
+            'Menguji Koneksi Bot...',
+            'Mengirim test ping ke Telegram Bot API...',
+            'Bot Terhubung! Koneksi OK.',
+            'Koneksi Gagal'
+        );
+    });
+
+    // ─── Web Audio Siren Alert Synthesizer ──────────────────────────
+    (function () {
+        const hasWarning = {{ 'true' if has_warning else 'false' }};
+        const sirenToggleBtn = document.getElementById('sirenToggleBtn');
+        const sirenBadgeText = document.getElementById('sirenBadgeText');
+        const sirenBadge     = document.getElementById('sirenBadge');
+        const sirenIcon      = document.getElementById('sirenIcon');
+        const sirenBtnText   = document.getElementById('sirenBtnText');
+
+        let audioCtx  = null;
+        let osc       = null;
+        let gainNode  = null;
+        let lfo       = null;
+        let isPlaying = false;
+        let isMuted   = localStorage.getItem('ews_siren_muted') === 'true';
+
+        function updateUiState() {
+            if (!sirenToggleBtn || !sirenBadge) return;
+
+            if (!hasWarning) {
+                sirenBadge.className = "badge bg-secondary text-white py-2 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5";
+                sirenBadgeText.innerText = "SISTEM AMAN";
+                sirenToggleBtn.disabled = true;
+                sirenToggleBtn.className = "btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5";
+                sirenBtnText.innerText = "Siren Off";
+                return;
+            }
+
+            sirenToggleBtn.disabled = false;
+            if (isMuted) {
+                sirenBadge.className = "badge bg-warning text-dark py-2 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5";
+                sirenBadgeText.innerText = "SIREN DI-MUTE";
+                sirenToggleBtn.className = "btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5";
+                if (sirenIcon) sirenIcon.className = "bi bi-volume-mute-fill";
+                sirenBtnText.innerText = "Unmute Siren";
+            } else {
+                sirenBadge.className = "badge bg-danger text-white py-2 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5 animate-pulse";
+                sirenBadgeText.innerText = "🚨 ALARM WASPADA/BAHAYA";
+                sirenToggleBtn.className = "btn btn-sm btn-danger rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5";
+                if (sirenIcon) sirenIcon.className = "bi bi-volume-up-fill";
+                sirenBtnText.innerText = "Mute Siren";
+            }
+        }
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function startSiren() {
+            if (!hasWarning || isMuted || isPlaying) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                osc      = audioCtx.createOscillator();
+                gainNode = audioCtx.createGain();
+                lfo      = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+
+                // LFO sweeps siren frequency between 400Hz and 900Hz
+                lfo.frequency.setValueAtTime(1.5, audioCtx.currentTime);
+                lfoGain.gain.setValueAtTime(250, audioCtx.currentTime);
+
+                lfo.connect(osc.frequency);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+
+                osc.start();
+                lfo.start();
+                isPlaying = true;
+            } catch (e) {
+                console.error("Audio siren error:", e);
+            }
+        }
+
+        function stopSiren() {
+            if (osc) {
+                try { osc.stop(); osc.disconnect(); } catch (e) {}
+                osc = null;
+            }
+            if (lfo) {
+                try { lfo.stop(); lfo.disconnect(); } catch (e) {}
+                lfo = null;
+            }
+            isPlaying = false;
+        }
+
+        if (sirenToggleBtn) {
+            sirenToggleBtn.addEventListener('click', function () {
+                initAudio();
+                isMuted = !isMuted;
+                localStorage.setItem('ews_siren_muted', isMuted);
+                updateUiState();
+
+                if (isMuted) {
+                    stopSiren();
+                } else {
+                    startSiren();
+                }
+            });
+        }
+
+        // Enable sound playback upon first user click interaction if warning active
+        document.addEventListener('click', function unlockAudio() {
+            if (hasWarning && !isMuted && !isPlaying) {
+                startSiren();
+            }
+        });
+
+        updateUiState();
+        if (hasWarning && !isMuted) {
+            startSiren();
+        }
+    })();
+
+});
+</script>
+{% endblock %}
+

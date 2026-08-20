@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Metrics Cards Overview -->
+    <div class="col-lg-12">
+        <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-bar-chart-line text-primary fs-5"></i>
+            <span>Tahap 3: Pengujian Validitas Validasi Model (20% Sisa Data Akhir)</span>
+        </h5>
+        
+        <div class="row g-4 mb-4">
+            {% for name, metric in metrics.items() %}
+            <div class="col-md-6 col-xl-3">
+                <div class="card metric-card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+                    <div class="card-body p-2 d-flex flex-column justify-content-between">
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Hulu: {{ name.replace('_', ' ') }}</h6>
+                            <span class="text-muted small">Metrics Coefficient</span>
+                        </div>
+                        
+                        <div class="d-flex flex-column gap-2">
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded-3 bg-light border">
+                                <span class="text-secondary small"><i class="bi bi-graph-down me-1.5 text-danger"></i> RMSE:</span>
+                                <code class="fw-bold text-danger">{{ "%.5f"|format(metric.RMSE) }}</code>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded-3 bg-light border">
+                                <span class="text-secondary small"><i class="bi bi-trophy me-1.5 text-warning"></i> NSE:</span>
+                                <code class="fw-bold text-success">{{ "%.4f"|format(metric.NSE) }}</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Compare Plot Area -->
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center px-4 pt-4 pb-0">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-activity text-primary me-2"></i> Grafik Komparasi Hasil Validasi Model (50 Sampel Berurutan)</h5>
+                    <p class="text-muted small mb-0">Membandingkan fluktuasi garis *Ground Truth* aktual vs model *Inference* Prediksi sekuensial</p>
+                </div>
+                <div style="min-width: 220px;">
+                    <label for="evalLocationSelector" class="form-label mb-1 text-muted small fw-medium">Pilih Wilayah Validasi:</label>
+                    <select id="evalLocationSelector" class="form-select rounded-pill px-3" onchange="window.location.href = '?location=' + this.value;">
+                        {% for loc in locations %}
+                            <option value="{{ loc }}" {% if loc == selected_location %}selected{% endif %}>
+                                {{ loc.replace('_', ' ') }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="card-body p-4">
+                <div class="chart-container p-3 rounded-4 border bg-white shadow-xs" style="height: 380px;">
+                    <canvas id="evalChart"></canvas>
+                </div>
+                
+                <div class="mt-3 p-3 bg-light rounded-3 border small text-muted">
+                    <i class="bi bi-exclamation-triangle text-warning me-1.5 animate-pulse"></i>
+                    <strong>Evaluasi Hidrologi:</strong> Koefisien <strong>NSE (Nash-Sutcliffe Efficiency)</strong> &gt; 0.7 menunjukkan model hidrometeorologi LSTM memiliki performa klasifikasi *Sangat Baik* dalam memprediksi kejadian banjir.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse raw chart payload passed from Flask main_routes
+        const rawChartData = '{{ eval_chart_data|safe }}';
+        const chartData = JSON.parse(rawChartData);
+        const selectedLocName = "{{ selected_location.replace('_', ' ') }}";
+        
+        const ctx = document.getElementById('evalChart').getContext('2d');
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Curah Hujan Aktual (Ground Truth)',
+                        data: chartData.actuals,
+                        borderColor: '#2ecc71',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        tension: 0.15,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#2ecc71'
+                    },
+                    {
+                        label: 'Curah Hujan Prediksi (LSTM)',
+                        data: chartData.predictions,
+                        borderColor: '#3498db',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        borderDash: [5, 5],
+                        tension: 0.15,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#3498db'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Validasi Aktual vs Prediksi - Stasiun ${selectedLocName}`,
+                        font: {
+                            family: 'Inter',
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        labels: {
+                            font: { family: 'Inter', size: 11 }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Sampel Jam Ke-',
+                            font: { family: 'Inter', size: 11 }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Curah Hujan (mm/jam)',
+                            font: { family: 'Inter', size: 11 }
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
